@@ -1,0 +1,16 @@
+{
+  "quests": [
+    {
+      "questID": "collect_01",
+      "description": "Collect 5 items scattered around the area.",
+      "questType": "CollectItems",
+      "requiredAmount": 5
+    },
+    {
+      "questID": "kill_01",
+      "description": "Hunt and kill 3 creatures roaming the area.",
+      "questType": "KillCreatures",
+      "requiredAmount": 3
+    }
+  ]
+}
