@@ -11,6 +11,12 @@
       "description": "Hunt and kill 3 creatures roaming the area.",
       "questType": "KillCreatures",
       "requiredAmount": 3
+    },
+    {
+      "questID": "boss_01",
+      "description": "Defeat the boss in the final battle.",
+      "questType": "BossFight",
+      "requiredAmount": 1
     }
   ]
 }

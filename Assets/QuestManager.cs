@@ -32,14 +32,13 @@ public class QuestManager : MonoBehaviour
         }
 
         UpdateQuestProgressUI();
-        if (currentQuest == null)
-            return;
-        if (currentQuest.currentAmount >= currentQuest.requiredAmount)
+
+        if (currentQuest != null && currentQuest.isCompleted)
         {
-            currentQuest.isCompleted = true;
             currentQuest = null;
         }
     }
+
 
     void TryAcceptQuest()
     {
@@ -54,89 +53,119 @@ public class QuestManager : MonoBehaviour
             NPCScript questGiver = npc.GetComponent<NPCScript>();
             if (questGiver == null)
                 continue;
-
+            {
+                Debug.Log(questGiver.questID); 
+            }
+            
             Quest quest = FindQuestByID(questGiver.questID);
+            for (int i = 0; i < 100; i++)
+            {
+                Debug.Log(quest.questType); 
+            }
             if (quest == null)
             {
                 Debug.LogWarning("Quest ID not found: " + questGiver.questID);
                 return;
             }
 
-            currentQuest = quest;
-            questDescription.text = quest.description;
-
-            // Show slider for the new quest
-            if (questProgressSlider != null)
+           
+            // Check if the quest is a boss fight and if previous quests are completed
+            if (quest.questType == QuestType.BossFight)
             {
-                questProgressSlider.gameObject.SetActive(true);
-                questProgressSlider.maxValue = quest.requiredAmount;
-                questProgressSlider.value = quest.currentAmount;
+                /*
+                if (!AreFirstTwoQuestsCompleted())
+                {
+                    Debug.Log("Complete the previous quests first!");
+                    questDescription.text = "Complete the previous quests first!";
+                    return;
+                }
+                */
+            }
+            else
+            {
+                currentQuest = quest;
+                questDescription.text = quest.description;
+
+                if (questProgressSlider != null)
+                {
+                    questProgressSlider.gameObject.SetActive(true);
+                    questProgressSlider.maxValue = quest.requiredAmount;
+                    questProgressSlider.value = quest.currentAmount;
+                }
+
+                return;
             }
 
-            return;
+          
         }
     }
 
-    Quest FindQuestByID(string questID)
+
+    public Quest FindQuestByID(string questID)
     {
         if (incompleteQuests == null) return null;
 
         foreach (Quest quest in incompleteQuests)
         {
             if (quest.questID == questID)
+            {
+                Debug.Log("found quest: " + quest.description + " id: " + quest.questID + " type: " + quest.questType);
                 return quest;
+            }
         }
         return null;
     }
 
+
     public void LoadQuestsFromJSON()
+{
+    TextAsset jsonFile = Resources.Load<TextAsset>("quests");
+
+    if (jsonFile == null)
     {
-        TextAsset jsonFile = Resources.Load<TextAsset>("quests");
-
-        if (jsonFile == null)
-        {
-            Debug.LogError("quests.json not found in Resources folder!");
-            return;
-        }
-
-        QuestDataWrapper data = JsonUtility.FromJson<QuestDataWrapper>(jsonFile.text);
-
-        if (data == null || data.quests == null || data.quests.Length == 0)
-        {
-            Debug.LogError("No quests found or failed to parse quests.json!");
-            return;
-        }
-
-        incompleteQuests = new Quest[data.quests.Length];
-
-        for (int i = 0; i < data.quests.Length; i++)
-        {
-            QuestData q = data.quests[i];
-            incompleteQuests[i] = new Quest(
-                q.questID,
-                q.description,
-                q.questType,
-                q.requiredAmount
-            );
-        }
-
-        Debug.Log("Quests loaded successfully. Total: " + incompleteQuests.Length);
+        Debug.LogError("quests.json not found in Resources folder!");
+        return;
     }
+
+    QuestDataWrapper data = JsonUtility.FromJson<QuestDataWrapper>(jsonFile.text);
+
+    if (data == null || data.quests == null || data.quests.Length == 0)
+    {
+        Debug.LogError("No quests found or failed to parse quests.json!");
+        return;
+    }
+
+    incompleteQuests = new Quest[data.quests.Length];
+
+    for (int i = 0; i < data.quests.Length; i++)
+    {
+        QuestData q = data.quests[i];
+        QuestType questType = (QuestType)System.Enum.Parse(typeof(QuestType), q.questType);
+        incompleteQuests[i] = new Quest(
+            q.questID,
+            q.description,
+            questType,
+            q.requiredAmount
+        );
+    }
+
+    Debug.Log("Quests loaded successfully. Total: " + incompleteQuests.Length);
+}
+
 
     public void AddQuestProgress(QuestType type, int amount = 1)
     {
-        if (currentQuest == null) return;
-        if (currentQuest.questType != type) return;
+        if (currentQuest == null || currentQuest.questType != type)
+            return;
 
+        Debug.Log("Adding quest progress for " + type + ": " + amount);
         currentQuest.AddProgress(amount);
 
-        // Update slider immediately
         if (questProgressSlider != null)
         {
             questProgressSlider.value = currentQuest.currentAmount;
         }
 
-        // Hide slider if quest completed
         if (currentQuest.isCompleted && questProgressSlider != null)
         {
             questProgressSlider.gameObject.SetActive(false);
@@ -154,71 +183,18 @@ public class QuestManager : MonoBehaviour
         {
             questProgressSlider.gameObject.SetActive(false);
             questDescription.text = "";
-            foreach (GameObject npc in NPCs)
-            {
-                NPCScript questGiver = npc.GetComponent<NPCScript>();
-                if (questGiver != null && questGiver.questID == currentQuest.questID)
-                {
-                    questGiver.questID = "";
-                    
-                }
-            }
         }
     }
-}
 
-
-[System.Serializable]
-public class QuestData
-{
-    public string questID;
-    public string description;
-    public QuestType questType;
-    public int requiredAmount;
-}
-
-[System.Serializable]
-public class QuestDataWrapper
-{
-    public QuestData[] quests;
-}
-
-public enum QuestType
-{
-    CollectItems,
-    KillCreatures
-}
-
-public class Quest
-{
-    public string questID;
-    public string description;
-    public QuestType questType;
-
-    public int requiredAmount;
-    public int currentAmount;
-    public bool isCompleted;
-
-    public Quest(string id, string desc, QuestType type, int required)
+    public bool AreFirstTwoQuestsCompleted()
     {
-        questID = id;
-        description = desc;
-        questType = type;
-        requiredAmount = required;
-
-        currentAmount = 0;
-        isCompleted = false;
-    }
-
-    public void AddProgress(int amount = 1)
-    {
-        if (isCompleted) return;
-
-        currentAmount += amount;
-        if (currentAmount >= requiredAmount)
+        foreach (Quest quest in incompleteQuests)
         {
-            isCompleted = true;
-            
+            if (quest.questID == "collect_01" && !quest.isCompleted)
+                return false;
+            if (quest.questID == "kill_01" && !quest.isCompleted)
+                return false;
         }
+        return true;
     }
 }

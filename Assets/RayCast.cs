@@ -26,35 +26,29 @@ public class RayCast : MonoBehaviour
 
     void Shoot()
     {
-
-        
-        
-
         Ray ray = playerCamera.ScreenPointToRay(Input.mousePosition);
         if (Physics.Raycast(ray, out RaycastHit hit, range, targetLayer))
         {
-
             GameObject target = hit.collider.gameObject;
-            Debug.Log("Hit target: " + target.name);
+            Debug.Log("Hit: " + target.name);
 
-            // Only interact with creatures
-            Creature creature = target.GetComponent<Creature>();
-            if (creature == null)
-                return;
-
-            // Only apply damage if quest type matches
-            if (questManager != null &&
-                questManager.currentQuest != null &&
-                questManager.currentQuest.questType == QuestType.KillCreatures)
-            { 
-                // Decrease creature HP
+            if (target.TryGetComponent(out Creature creature))
+            {
                 creature.TakeDamage(1);
-
-                // If creature is dead
-                if (creature.IsDead())
+                if (creature.IsDead()) 
                 {
                     Destroy(target);
                     questManager.AddQuestProgress(QuestType.KillCreatures);
+                }
+            }
+            else if (target.TryGetComponent(out Boss boss))
+            {
+                boss.TakeDamage(1);
+                Debug.Log("Boss HP: " + boss.currentHP);
+                if (boss.IsDead())
+                {
+                    Destroy(target);
+                    questManager.AddQuestProgress(QuestType.BossFight);
                 }
             }
         }
